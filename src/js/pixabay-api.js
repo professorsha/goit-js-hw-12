@@ -1,54 +1,25 @@
-const inputOfWords = document.querySelector('.query');     // Інпут
-const buttonForInput = document.querySelector('.search-button'); // Кнопка
+import axios from 'axios';
 
+const API_KEY = '42710952-cb07850fe6c5f6774b64d780f';
+const baseURL = 'https://pixabay.com/api/';
 
-let wordOfUser = '';
+export async function fetchImages(searchQuery, page, perPage) {
+  try {
+    const response = await axios.get(baseURL, {
+      params: {
+        key: API_KEY,
+        q: searchQuery,
+        image_type: 'photo',
+        orientation: 'horizontal',
+        safesearch: true,
+        page: page,
+        per_page: perPage,
+      },
+    });
 
-
-buttonForInput.addEventListener('click', event => {   // Надсилання запиту на сервер
-  loaderF();
-  event.preventDefault();
-  userList.innerHTML = '';
-  setTimeout(() => {
-    wordOfUser = inputOfWords.value.trim();
-    checkInputValidity();
-  }, 2000);
-});
-
-function checkInputValidity() {                   // Перевірка валідності запиту
-  fetchImages()
-    .then(images => {
-      if (wordOfUser === '') {
-        iziToast.show({
-          color: 'red',
-          message: `Sorry, the input field must be filled in to start the photo search.`,
-          position: 'topCenter',
-        });
-      } else if (images.length === 0) {
-        iziToast.show({
-          color: 'red',
-          message: `Sorry, there are no images matching your search query. Please try again!`,
-          position: 'topCenter',
-        });
-      } else {
-        renderImg(images);
-      }
-    })
-    .catch(error => console.log(error))
-    .finally(() => spanElementRem());
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching images:', error);
+    throw error;
+  }
 }
-
-await function fetchImages() {                            // Запит на сервер для отримання фото
-  return fetch(
-    `https://pixabay.com/api/?key=42977219-0f6c9f9217f976d8651793c3a&q=${wordOfUser}&image_type=photo&per_page=15&orientation=horizontal&safesearch=true`
-  )
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(response.status);
-      }
-      return response.json();
-    })
-    .then(data => data.hits);
-}
-
-import { userList, renderImg, loaderF, spanElementRem,} from './render-functions.js';

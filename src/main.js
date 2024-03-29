@@ -1,112 +1,152 @@
-import iziToast from 'izitoast';                                  // Бібліотека для повідомлень
+import { fetchImages } from './js/pixabay-api';
+import './css/loader-styles.css';
+import 'simplelightbox/dist/simple-lightbox.min.css';
+import {
+  renderGallery,
+  galleryElement,
+  showEndOfCollectionMessage,
+} from './js/render-functions';
+import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
 
-import SimpleLightbox from 'simplelightbox';                      // Бібліотека для галереї
-import 'simplelightbox/dist/simple-lightbox.min.css';
+const scrollToTopBtn = document.querySelector('.scroll-to-top');
 
-const inputOfWords = document.querySelector('.query');     // Інпут
-const buttonForInput = document.querySelector('.search-button'); // Кнопка
-const userList = document.querySelector('.result');             // Галерея
-const areaForLoader = document.querySelector('.forLoader');   // Лоадер
+const searchForm = document.querySelector('.form-search');
+const inputElement = document.querySelector('.query');
+const loader = document.querySelector('.loader');
+const loadMoreBtn = document.querySelector('.load-more-btn');
 
-let wordOfUser = '';
-let imagesLength = '';
+hideLoader();
 
-const lightbox = new SimpleLightbox('.result a', {   // Великі картинки 
-  captionDelay: 250,
-  captionsData: 'alt',
-});
+let searchTerm = '';
+let pageCounter = 1;
+const perPage = 15;
 
-buttonForInput.addEventListener('click', event => {   // Надсилання запиту на сервер
-  loaderF();
+searchForm.addEventListener('submit', submitHandle);
+async function submitHandle(event) {
   event.preventDefault();
-  userList.innerHTML = '';
-  setTimeout(() => {
-    wordOfUser = inputOfWords.value.trim();
-    checkInputValidity();
-  }, 2000);
+  searchTerm = inputElement.value.trim();
+  pageCounter = 1;
+
+  galleryElement.innerHTML = '';
+
+  if (searchTerm === '') {
+    iziToast.error({
+      title: 'Error',
+      message: 'Please enter a search term.',
+      position: 'topCenter',
+    });
+    hideLoadMoreBtn();
+
+    return;
+  }
+
+  hideEndOfCollectionMessage();
+
+  showLoader();
+  try {
+    const images = await fetchImages(searchTerm, pageCounter, perPage);
+    const totalHits = images.totalHits;
+
+    if (images.hits.length === 0) {
+      galleryElement.innerHTML = '';
+      iziToast.info({
+        title: 'Info',
+        message:
+          'Sorry, there are no images matching your search query. Please try again!',
+        position: 'topCenter',
+      });
+      hideLoadMoreBtn();
+      return;
+    } else {
+      renderGallery(images.hits);
+      inputElement.value = '';
+      showLoadMoreBtn();
+    }
+    if (perPage * pageCounter >= totalHits) {
+      hideLoadMoreBtn();
+      showEndOfCollectionMessage();
+    }
+  } catch (error) {
+    console.error('Error fetching images:', error);
+    iziToast.error({
+      title: 'Error',
+      message: 'Failed to fetch images. Please try again later.',
+      position: 'topCenter',
+    });
+  } finally {
+    hideLoader();
+  }
+}
+
+loadMoreBtn.addEventListener('click', async () => {
+  try {
+    if (loadMoreBtn) {
+      pageCounter += 1;
+    }
+    const images = await fetchImages(searchTerm, pageCounter, perPage);
+    const totalHits = images.totalHits;
+
+    renderGallery(images.hits);
+    showLoader();
+    if (perPage * pageCounter >= totalHits) {
+      hideLoadMoreBtn();
+      showEndOfCollectionMessage();
+    }
+
+    const galleryCardHeight =
+      galleryElement.firstElementChild.getBoundingClientRect().height;
+    window.scrollBy({ top: galleryCardHeight * 3, behavior: 'smooth' });
+  } catch (error) {
+    console.error('Error fetching more images:', error);
+    iziToast.error({
+      title: 'Error',
+      message: `Error fetching more images: ${error}`,
+    });
+  } finally {
+    hideLoader();
+  }
 });
 
-function checkInputValidity() {                   // Перевірка валідності запиту
-  fetchImages()
-    .then(images => {
-      if (wordOfUser === '') {
-        iziToast.show({
-          color: 'red',
-          message: `Sorry, the input field must be filled in to start the photo search.`,
-          position: 'topCenter',
-        });
-      } else if (images.length === 0) {
-        iziToast.show({
-          color: 'red',
-          message: `Sorry, there are no images matching your search query. Please try again!`,
-          position: 'topCenter',
-        });
-      } else {
-        renderImg(images);
-      }
-    })
-    .catch(error => console.log(error))
-    .finally(() => spanElementRem());
+// *loader
+function showLoader() {
+  loader.classList.remove('hidden');
 }
 
-function renderImg(images) {                        // Рендар фото в браузері
-  imagesLength = images.length;
-
-  const markupImg = images                          
-    .map(image => {
-      return `<div class="blockForAllElements">
-          <li>
-          <a href=${image.largeImageURL} download="false">
-          <img src=${image.webformatURL} alt = "${image.tags}" class = "imgOfUser">
-          </a>
-          </li>
-          <div class = "divForDescription"> 
-          <ul class="blockOfInfo"> 
-            <li class="title">Likes</li>
-            <li class="info">${image.likes}</li>
-          </ul>
-          <ul class="block">
-            <li class="title">Views</li>
-            <li class="info">${image.views}</li>
-          </ul>
-          <ul class="block">
-            <li class="title">Comments</li>
-            <li class="info">${image.comments}</li>
-          </ul>
-          <ul class="block">
-            <li class="title">Downloads</li>
-            <li class="info">${image.downloads}</li>
-          </ul>
-          </div>
-        </div>`;
-    })
-    .join('');
-  userList.insertAdjacentHTML('beforeend', markupImg);
-
-  lightbox.refresh();
+function hideLoader() {
+  loader.classList.add('hidden');
 }
 
-function fetchImages() {                            // Запит на сервер для отримання фото
-  return fetch(
-    `https://pixabay.com/api/?key=42977219-0f6c9f9217f976d8651793c3a&q=${wordOfUser}&image_type=photo&per_page=15&orientation=horizontal&safesearch=true`
-  )
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(response.status);
-      }
-      return response.json();
-    })
-    .then(data => data.hits);
+// * button load more images
+function showLoadMoreBtn() {
+  loadMoreBtn.style.display = 'block';
 }
 
-function loaderF() {                                  // Створюємо лоадер
-  const spanElement = document.createElement('span');
-  areaForLoader.appendChild(spanElement);
-  spanElement.classList.add('loader');
+function hideLoadMoreBtn() {
+  loadMoreBtn.style.display = 'none';
 }
 
-function spanElementRem() {                           // Видаляємо лоадер
-  const loaderF = document.querySelector('.loader');
-  loaderF.remove();
+function hideEndOfCollectionMessage() {
+  const endMessage = document.querySelector('.end-message');
+  if (endMessage) {
+    endMessage.remove();
+  }
 }
+
+// * scroll
+window.addEventListener('scroll', () => {
+  if (document.body.scrollTop > 30 || document.documentElement.scrollTop > 30) {
+    scrollToTopBtn.style.display = 'flex';
+  } else {
+    scrollToTopBtn.style.display = 'none';
+  }
+});
+
+function scrollToTop() {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth',
+  });
+}
+
+scrollToTopBtn.addEventListener('click', scrollToTop);

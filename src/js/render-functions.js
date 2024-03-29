@@ -1,66 +1,40 @@
-import iziToast from 'izitoast';                                  // Бібліотека для повідомлень
-import 'izitoast/dist/css/iziToast.min.css';
+import SimpleLightbox from 'simplelightbox';
 
-import SimpleLightbox from 'simplelightbox';                      // Бібліотека для галереї
-import 'simplelightbox/dist/simple-lightbox.min.css';
+export const galleryElement = document.querySelector('.gallery');
 
-export const userList = document.querySelector('.result');             // Галерея
-export const areaForLoader = document.querySelector('.forLoader');   // Лоадер
-
-export const lightbox = new SimpleLightbox('.result a', {   // Великі картинки 
-  captionDelay: 250,
+const lightbox = new SimpleLightbox('.gallery a', {
   captionsData: 'alt',
+  captionDelay: 250,
 });
 
-export let imagesLength = '';
+lightbox.refresh();
 
-export function renderImg(images) {                        // Рендар фото в браузері
-  imagesLength = images.length;
+export function renderGallery(images) {
 
-  const markupImg = images                          
-    .map(image => {
-      console.log(image);
-      return `<div class="blockForAllElements">
-          <li>
-          <a href=${image.largeImageURL} download="false">
-          <img src=${image.webformatURL} alt = "${image.tags}" class = "imgOfUser">
-          </a>
-          </li>
-          <div class = "divForDescription"> 
-          <ul class="blockOfInfo"> 
-            <li class="title">Likes</li>
-            <li class="info">${image.likes}</li>
-          </ul>
-          <ul class="block">
-            <li class="title">Views</li>
-            <li class="info">${image.views}</li>
-          </ul>
-          <ul class="block">
-            <li class="title">Comments</li>
-            <li class="info">${image.comments}</li>
-          </ul>
-          <ul class="block">
-            <li class="title">Downloads</li>
-            <li class="info">${image.downloads}</li>
-          </ul>
-          </div>
-        </div>`;
-    })
-    .join('');
-  userList.insertAdjacentHTML('beforeend', markupImg);
-
+  images.forEach(image => {
+    const cardHTML = `
+      <li class="card">
+        <a href="${image.largeImageURL}" class="link">
+          <img src="${image.webformatURL}" alt="${image.tags}">
+          <ul class="list-container">
+          <li class="item-description"><h3>Likes</h3> <p>${image.likes}</p></li>
+          <li class="item-description"><h3>Views</h3> <p>${image.views}</p></li>
+          <li class="item-description"><h3>Comments</h3> <p>${image.comments}</p></li>
+          <li class="item-description"><h3>Downloads</h3> <p>${image.downloads}</p></li>
+        </ul>
+        </a>
+        
+      </li>
+    `;
+    galleryElement.insertAdjacentHTML('beforeend', cardHTML);
+  });
   lightbox.refresh();
 }
-
-export function loaderF() {                                  // Створюємо лоадер
-  const spanElement = document.createElement('span');
-  areaForLoader.appendChild(spanElement);
-  spanElement.classList.add('loader');
+export function showEndOfCollectionMessage() {
+  const endMessage = document.createElement('p');
+  endMessage.classList.add('end-message');
+  endMessage.textContent =
+    "We're sorry, but you've reached the end of search results.";
+  galleryElement.insertAdjacentElement('afterend', endMessage);
 }
-
-export function spanElementRem() {                           // Видаляємо лоадер
-  const loaderF = document.querySelector('.loader');
-  loaderF.remove();
-}
-
 
